@@ -64,12 +64,17 @@ const unsigned int RtApi::SAMPLE_RATES[] = {
 
   #include "tchar.h"
 
-  static std::string convertCharPointerToStdString(const char *text)
+  template<typename T> inline
+  std::string convertCharPointerToStdString(const T *text);
+
+  template<> inline
+  std::string convertCharPointerToStdString(const char *text)
   {
     return std::string(text);
   }
 
-  static std::string convertCharPointerToStdString(const wchar_t *text)
+  template<> inline
+  std::string convertCharPointerToStdString(const wchar_t *text)
   {
     int length = WideCharToMultiByte(CP_UTF8, 0, text, -1, NULL, 0, NULL, NULL);
     std::string s( length-1, '\0' );
@@ -7150,7 +7155,11 @@ struct AlsaHandle {
   bool runnable;
 
   AlsaHandle()
-    :synchronized(false), runnable(false) { xrun[0] = false; xrun[1] = false; }
+#if _cplusplus >= 201103L
+    :handles{nullptr, nullptr}, synchronized(false), runnable(false) { xrun[0] = false; xrun[1] = false; }
+#else 
+    : synchronized(false), runnable(false) { handles[0] = NULL; handles[1] = NULL; xrun[0] = false; xrun[1] = false; }
+#endif
 };
 
 static void *alsaCallbackHandler( void * ptr );
