@@ -242,13 +242,8 @@ endif()
 # In MSVC, set MD/MT appropriately for a static library
 # (From https://github.com/protocolbuffers/protobuf/blob/master/cmake/CMakeLists.txt)
 if(MSVC AND RTAUDIO_STATIC_MSVCRT)
-  foreach(flag_var
-      CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
-      CMAKE_CXX_FLAGS_MINSIZEREL CMAKE_CXX_FLAGS_RELWITHDEBINFO)
-    if(${flag_var} MATCHES "/MD")
-      string(REGEX REPLACE "/MD" "/MT" ${flag_var} "${${flag_var}}")
-    endif(${flag_var} MATCHES "/MD")
-  endforeach(flag_var)
+	set_property(TARGET rtaudio PROPERTY
+		MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 # Add headers destination for install rule.
