@@ -4977,7 +4977,8 @@ void RtApiWasapi::wasapiThread()
   DWORD captureFlags = 0;
   unsigned int bufferFrameCount = 0;
   unsigned int numFramesPadding = 0;
-  unsigned int convBufferSize = 0;
+  unsigned int captureConvBufferSize = 0;
+  unsigned int renderConvBufferSize = 0;
   bool loopbackEnabled = stream_.device[INPUT] == stream_.device[OUTPUT];
   bool callbackPushed = true;
   bool callbackPulled = false;
@@ -5211,8 +5212,8 @@ void RtApiWasapi::wasapiThread()
       {
         int samplesToPull = ( unsigned int ) floorf( stream_.bufferSize * captureSrRatio );
 
-        convBufferSize = 0;
-        while ( convBufferSize < stream_.bufferSize )
+        captureConvBufferSize = 0;
+        while ( captureConvBufferSize < stream_.bufferSize )
         {
           // Pull callback buffer from inputBuffer
           callbackPulled = captureBuffer.pullBuffer( convBuffer,
@@ -5225,16 +5226,16 @@ void RtApiWasapi::wasapiThread()
           }
 
           // Convert callback buffer to user sample rate
-          unsigned int deviceBufferOffset = convBufferSize * stream_.nDeviceChannels[INPUT] * formatBytes( stream_.deviceFormat[INPUT] );
+          unsigned int deviceBufferOffset = captureConvBufferSize * stream_.nDeviceChannels[INPUT] * formatBytes( stream_.deviceFormat[INPUT] );
           unsigned int convSamples = 0;
 
           captureResampler->Convert( stream_.deviceBuffer + deviceBufferOffset,
                                      convBuffer,
                                      samplesToPull,
                                      convSamples,
-                                     convBufferSize == 0 ? -1 : stream_.bufferSize - convBufferSize );
+                                     captureConvBufferSize == 0 ? -1 : stream_.bufferSize - captureConvBufferSize );
 
-          convBufferSize += convSamples;
+          captureConvBufferSize += convSamples;
           samplesToPull = 1; // now pull one sample at a time until we have stream_.bufferSize samples
         }
 
@@ -5322,7 +5323,7 @@ void RtApiWasapi::wasapiThread()
     if ( renderAudioClient && callbackPulled )
     {
       // if the last call to renderBuffer.PushBuffer() was successful
-      if ( callbackPushed || convBufferSize == 0 )
+      if ( callbackPushed || renderConvBufferSize == 0 )
       {
         if ( stream_.doConvertBuffer[OUTPUT] )
         {
@@ -5343,12 +5344,12 @@ void RtApiWasapi::wasapiThread()
         renderResampler->Convert( convBuffer,
                                   stream_.deviceBuffer,
                                   stream_.bufferSize,
-                                  convBufferSize );
+                                  renderConvBufferSize );
       }
 
       // Push callback buffer into outputBuffer
       callbackPushed = renderBuffer.pushBuffer( convBuffer,
-                                                convBufferSize * stream_.nDeviceChannels[OUTPUT],
+                                                renderConvBufferSize * stream_.nDeviceChannels[OUTPUT],
                                                 stream_.deviceFormat[OUTPUT] );
     }
     else {
@@ -10401,7 +10402,7 @@ void RtApi :: convertBuffer( char *outBuffer, char *inBuffer, ConvertInfo &info 
 
   // Clear our device buffer when in/out duplex device channels are different
   if ( outBuffer == stream_.deviceBuffer && stream_.mode == DUPLEX &&
-       ( stream_.nDeviceChannels[0] < stream_.nDeviceChannels[1] ) )
+       ( stream_.nDeviceChannels[0] != stream_.nDeviceChannels[1] ) )
     memset( outBuffer, 0, stream_.bufferSize * info.outJump * formatBytes( info.outFormat ) );
 
   int j;
